@@ -1,0 +1,16 @@
+{
+  "name": "comparison-tool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://repo3.serv00.com/git/priv/ljayz/comparison-tool/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
