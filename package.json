@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node app.js"
+    "dev": "nodemon app.js"
   },
   "repository": {
     "type": "git",
@@ -15,9 +15,13 @@
   "license": "ISC",
   "dependencies": {
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "postgres": "^3.4.4"
   },
   "volta": {
     "node": "20.12.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }

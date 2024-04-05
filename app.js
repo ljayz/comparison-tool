@@ -1,9 +1,16 @@
+require("dotenv").config();
 const express = require("express");
-const app = express();
-const port = 3000;
+const postgres = require("postgres");
 
-app.get("/", (req, res) => {
-  res.send("Hello World from express3!");
+const app = express();
+const sql = postgres(process.env.POSTGRES);
+const port = process.env.PORT;
+
+app.get("/", async (req, res) => {
+  var lists = await sql`SELECT x.* FROM mobile_app_sample_data x`;
+  // console.log(lists);
+
+  res.json(lists);
 });
 
 app.listen(port, () => {
