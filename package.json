@@ -17,5 +17,8 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2"
   },
-  "type": "module"
+  "type": "module",
+  "volta": {
+    "node": "20.12.1"
+  }
 }
