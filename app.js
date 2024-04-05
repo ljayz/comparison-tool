@@ -1,6 +1,11 @@
-var http = require("http");
-var server = http.createServer(function (req, res) {
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("hello world!\ntest2");
+import express from "express";
+const app = express();
+const port = 3000;
+
+app.get("/", (req, res) => {
+  res.send("Hello World!");
 });
-server.listen(3000);
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
+});
