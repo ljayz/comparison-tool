@@ -1,0 +1,17 @@
+#!/bin/sh
+unset GIT_INDEX_FILE
+
+export DOMAIN=nodejs.ljayz.serv00.net
+export PUBLIC=public_nodejs
+export LOGIN=ljayz
+export VISIBILITY=priv
+export REPONAME=comparison-tool
+
+export GIT_WORK_TREE="/usr/home/$LOGIN/domains/$DOMAIN/$PUBLIC/"
+export GIT_DIR="/usr/home/$LOGIN/repo/git/$VISIBILITY/$REPONAME/"
+/usr/local/bin/git checkout -f
+
+cd /usr/home/$LOGIN/domains/$DOMAIN/$PUBLIC/
+rm -rf node_modules
+/usr/home/$LOGIN/bin/npm install
+/usr/local/devil/bin/devil www restart $DOMAIN
