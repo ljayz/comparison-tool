@@ -16,7 +16,9 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "postgres": "^3.4.4"
+    "numeral": "^2.0.6",
+    "postgres": "^3.4.4",
+    "ramda": "^0.29.1"
   },
   "volta": {
     "node": "20.12.1"
