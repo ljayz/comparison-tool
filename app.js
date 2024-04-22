@@ -63,7 +63,7 @@ app.get("/tampermonkey", async (req, res) => {
     "const isDev = true;",
   ];
   const replaceArr = [
-    "@name         Price pro",
+    "@name         Price Pro System",
     "Save products from shopee and lazada to price pro system",
     "const isDev = false;",
   ];
