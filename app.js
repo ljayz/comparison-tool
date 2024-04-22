@@ -56,11 +56,21 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/tampermonkey", async (req, res) => {
-  const data = fs.readFileSync("./tampermonkey.txt", "utf8");
-  const regexIsDev = /const isDev = true;/;
-  const replaceIsDev = "const isDev = false;";
-  const newData = data.replace(regexIsDev, replaceIsDev);
-  res.send(newData);
+  let data = fs.readFileSync("./tampermonkey.txt", "utf8");
+  const regexArr = [
+    "@name         Comparison System",
+    "Save products from shopee and lazada to comparison system",
+    "const isDev = true;",
+  ];
+  const replaceArr = [
+    "@name         Price pro",
+    "Save products from shopee and lazada to price pro system",
+    "const isDev = false;",
+  ];
+  for (const key in regexArr) {
+    data = data.replace(regexArr[key], replaceArr[key]);
+  }
+  res.send(data);
 });
 
 //get all products limit 10

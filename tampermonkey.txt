@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Price pro
+// @name         Comparison System
 // @namespace    http://nodejs.ljayz.serv00.net/
 // @version      2024-03-29
-// @description  Save products from shopee and lazada to price pro system
+// @description  Save products from shopee and lazada to comparison system
 // @author       Louie Cruz
 // @match        https://shopee.ph/search*
 // @match        https://www.lazada.com.ph/catalog*
