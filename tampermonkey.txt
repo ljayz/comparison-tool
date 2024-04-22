@@ -3,6 +3,7 @@
 // @namespace    http://nodejs.ljayz.serv00.net/tampermonkey
 // @version      2024-03-29
 // @description  Save products from shopee and lazada to comparison system
+// @iconURL      https://iili.io/JS3ElTX.jpg
 // @author       Louie Cruz
 // @match        https://shopee.ph/search*
 // @match        https://www.lazada.com.ph/catalog*
