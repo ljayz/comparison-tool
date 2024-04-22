@@ -1,9 +1,8 @@
 // ==UserScript==
 // @name         Comparison System
-// @namespace    http://nodejs.ljayz.serv00.net/
+// @namespace    http://nodejs.ljayz.serv00.net/tampermonkey
 // @version      2024-03-29
 // @description  Save products from shopee and lazada to comparison system
-// @source       http://nodejs.ljayz.serv00.net/tampermonkey
 // @author       Louie Cruz
 // @match        https://shopee.ph/search*
 // @match        https://www.lazada.com.ph/catalog*
@@ -15,6 +14,8 @@
 // @grant        GM_registerMenuCommand
 // @connect      localhost
 // @connect      nodejs.ljayz.serv00.net
+// @updateURL    http://nodejs.ljayz.serv00.net/tampermonkey
+// @downloadURL  http://nodejs.ljayz.serv00.net/tampermonkey
 // ==/UserScript==
 
 GM_addStyle(
