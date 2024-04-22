@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const postgres = require("postgres");
 const { flatten, slice, zip } = require("ramda");
+const fs = require("fs");
 
 const app = express();
 const sql = postgres(process.env.POSTGRES);
@@ -52,6 +53,14 @@ app.use(express.json());
 
 app.get("/", async (req, res) => {
   res.send("It works!");
+});
+
+app.get("/tampermonkey", async (req, res) => {
+  const data = fs.readFileSync("./tampermonkey.txt", "utf8");
+  const regexIsDev = /const isDev = true;/;
+  const replaceIsDev = "const isDev = false;";
+  const newData = data.replace(regexIsDev, replaceIsDev);
+  res.send(newData);
 });
 
 //get all products limit 10

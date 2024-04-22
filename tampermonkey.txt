@@ -1,0 +1,556 @@
+// ==UserScript==
+// @name         Price pro
+// @namespace    http://nodejs.ljayz.serv00.net/
+// @version      2024-03-29
+// @description  Save products from shopee and lazada to price pro system
+// @author       Louie Cruz
+// @match        https://shopee.ph/search*
+// @match        https://www.lazada.com.ph/catalog*
+// @match        https://www.lazada.com.ph/shop*
+// @run-at       document-start
+// @grant        unsafeWindow
+// @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
+// @grant        GM_registerMenuCommand
+// @connect      localhost
+// @connect      nodejs.ljayz.serv00.net
+// ==/UserScript==
+
+GM_addStyle(
+  `.c-absolute{position:absolute}.c-relative{position:relative}.c-right-2{right:.5rem}.c-right-5{right:1.25rem}.c-top-2{top:.5rem}.c-z-10{z-index:10}@keyframes c-spin{to{transform:rotate(1turn)}}.c-animate-spin{animation:c-spin 1s linear infinite}.hover\\:\\!c-z-20:hover{z-index:20!important}`
+);
+
+const logo = "https://iili.io/JS3ElTX.jpg";
+const grayedLogo = "https://iili.io/JS3E0jn.jpg";
+const devUrl = `http://localhost:3000`;
+const prodUrl = `http://nodejs.ljayz.serv00.net`;
+const isDev = true;
+const backendUrl = isDev ? devUrl : prodUrl;
+const currentUrl = window.location.hostname;
+const isShopee = /shopee/.test(currentUrl);
+const isLazada = /lazada/.test(currentUrl);
+let addAllProductsMenu,
+  removeAllProductsMenu,
+  addRemoveProductsLoading = false;
+const observer = new MutationObserver(function (mutations) {
+  for (const mutation of mutations) {
+    if (mutation.type === "childList") {
+      ShopeeAddLogoToProducts();
+    }
+  }
+});
+const setImageToActive = (itemId) => {
+  const imgId = `comparisonItemIdImg${itemId}`;
+  const img = document.getElementById(imgId);
+
+  if (img) {
+    img.src = logo;
+  }
+};
+const setImageToInactive = (itemId) => {
+  const imgId = `comparisonItemIdImg${itemId}`;
+  const img = document.getElementById(imgId);
+
+  if (img) {
+    img.src = grayedLogo;
+  }
+};
+const getComparisonData = (itemId) => {
+  const window = unsafeWindow;
+  const comparisonProducts = window?.comparisonProducts;
+
+  return comparisonProducts.filter((product) => product.itemid == itemId);
+};
+const patchProductsSort = () => {
+  GM_xmlhttpRequest({
+    method: "PATCH",
+    url: `${backendUrl}/products/sort`,
+    responseType: "json",
+    onload: function (res) {
+      console.log("Patching of products sort done");
+    },
+    onerror: function (res) {
+      console.log("Error patching products sort", res);
+    },
+  });
+};
+const toggleComparisonSystemProduct = (event) => {
+  event.preventDefault();
+  const window = unsafeWindow;
+  const comparisonItemIds = window?.comparisonItemIds || [];
+  const site = isShopee ? "shopee" : isLazada ? "lazada" : "";
+
+  if (!site) {
+    return false;
+  }
+
+  const link = event.target;
+  const dataItemId = link.getAttribute("data-comparison-item-id");
+  // console.log(`save product with item id ${dataItemId}`);
+  const productExist = comparisonItemIds.includes(dataItemId);
+
+  if (link.classList.contains("c-animate-spin")) {
+    return false;
+  }
+
+  link.classList.add("c-animate-spin");
+
+  if (productExist) {
+    //delete
+    GM_xmlhttpRequest({
+      method: "DELETE",
+      url: `${backendUrl}/products/${dataItemId}/${site}`,
+      responseType: "json",
+      onload: function (res) {
+        console.log("Deleting of itemId done", dataItemId);
+        removeComparisonItemId(dataItemId);
+        setImageToInactive(dataItemId);
+        link.classList.remove("c-animate-spin");
+      },
+      onerror: function (res) {
+        console.log("Error deleting itemId", res);
+        link.classList.remove("c-animate-spin");
+      },
+    });
+  } else {
+    //create
+    const createProductArr = getComparisonData(dataItemId);
+    if (createProductArr.length) {
+      const createProduct = createProductArr.shift();
+      // console.log(`product to create`, JSON.stringify(createProduct));
+      GM_xmlhttpRequest({
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        anonymous: true,
+        nocache: true,
+        // revalidate: true,
+        url: `${backendUrl}/products`,
+        data: JSON.stringify(createProduct),
+        // responseType: "json",
+        // fetch: true,
+        onload: function (res) {
+          console.log("Creating of itemId done", res.response);
+          addComparisonItemId(dataItemId);
+          setImageToActive(dataItemId);
+          link.classList.remove("c-animate-spin");
+          patchProductsSort();
+        },
+        onerror: function (res) {
+          console.log("Error creating itemId", res);
+          link.classList.remove("c-animate-spin");
+        },
+      });
+    }
+  }
+};
+const createImageWithLink = (imageUrl, itemId) => {
+  const image = new Image();
+  image.id = `comparisonItemIdImg${itemId}`;
+  image.src = imageUrl;
+  image.height = 24;
+  image.width = 24;
+  image.setAttribute("data-comparison-item-id", itemId);
+  image.classList = addRemoveProductsLoading
+    ? "comparison-system-img c-animate-spin"
+    : "comparison-system-img";
+
+  const link = document.createElement("a");
+  link.href = "#";
+  link.id = `comparisonItemId${itemId}`;
+  link.classList = "c-absolute c-top-2 c-z-10";
+  link.setAttribute("data-comparison-item-id", itemId);
+  link.addEventListener("click", toggleComparisonSystemProduct);
+
+  if (isLazada) {
+    link.classList.add("c-right-5");
+  }
+  if (isShopee) {
+    link.classList.add("c-right-2");
+  }
+
+  link.appendChild(image);
+
+  return link;
+};
+const checkIfComparisonSystemDataIsCreated = () => {
+  const window = unsafeWindow;
+  const checkInterval = setInterval(() => {
+    if (window?.comparisonProducts && window?.comparisonItemIds) {
+      clearInterval(checkInterval);
+
+      if (isLazada) {
+        setTimeout(LazadaAddLogoToProducts, 2000);
+      }
+
+      if (isShopee) {
+        setTimeout(ShopeeAddLogoToProducts, 2000);
+      }
+    }
+  }, 1000);
+};
+const formatLazadaAPIResponse = (products) => {
+  try {
+    return products.map((product) => ({
+      site: "lazada",
+      name: product.name,
+      itemid: product.itemId,
+      shopid: product.sellerId,
+      brand: product.brandName,
+      rating: product.ratingScore,
+      sold: `${product.itemSoldCntShow}`,
+      price: product.price,
+      review: String(product.review),
+      stock: String(product.inStock),
+      location: product.location,
+      image: product.image,
+      images: product.thumbs.map((thumb) => thumb.image),
+    }));
+  } catch (err) {
+    console.log("Error formatting lazada api response", err);
+  }
+};
+const formatShopeeAPIResponse = (products) => {
+  try {
+    return products.map((product) => ({
+      site: "shopee",
+      name: product.item_basic.name,
+      itemid: product.itemid,
+      shopid: product.shopid,
+      brand: product.item_basic.brand,
+      rating: product.item_basic.item_rating.rating_star,
+      sold: `${product.item_basic.historical_sold}`,
+      price: product.item_basic.price
+        ? Number(product.item_basic.price) / 100000
+        : product.item_basic.price,
+      review: String(product.item_basic.cmt_count),
+      stock: String(product.item_basic.stock),
+      location: product.item_basic.shop_location,
+      image: `https://down-ph.img.susercontent.com/file/${product.item_basic.image}_tn.webp`,
+      images: product.item_basic.images.map((image) => {
+        const fullImagePath = `https://down-ph.img.susercontent.com/file/${image}_tn.webp`;
+        return fullImagePath;
+      }),
+    }));
+  } catch (err) {
+    console.log("Error formatting shopee api response", err);
+  }
+};
+const createComparisonData = (apiResponse) => {
+  const window = unsafeWindow;
+
+  if (isShopee) {
+    window.comparisonProducts = formatShopeeAPIResponse(apiResponse.items);
+    // console.log("comparisonProducts", window.comparisonProducts);
+  }
+
+  if (isLazada) {
+    window.comparisonProducts = formatLazadaAPIResponse(
+      apiResponse.mods.listItems
+    );
+  }
+};
+const fetchComparisonItemIds = () => {
+  const window = unsafeWindow;
+  const site = isShopee ? "shopee" : isLazada ? "lazada" : "";
+  GM_xmlhttpRequest({
+    method: "GET",
+    url: `${backendUrl}/itemIds/${site}`,
+    responseType: "json",
+    onload: function (res) {
+      console.log("Loading of itemIds done", res.response);
+      window.comparisonItemIds = res.response.data;
+    },
+    onerror: function (res) {
+      console.log("Error loading itemIds", res);
+    },
+  });
+};
+const addBatchComparisonItemIds = (newItemIds) => {
+  const window = unsafeWindow;
+  const comparisonItemIds = window?.comparisonItemIds || [];
+  const combinedArr = [...comparisonItemIds, ...newItemIds];
+  const uniqueSet = new Set(combinedArr); //remove duplicates
+
+  window.comparisonItemIds = Array.from(uniqueSet);
+};
+const removeBatchComparisonItemIds = () => {
+  const window = unsafeWindow;
+  const comparisonItemIds = window?.comparisonItemIds || [];
+
+  window.comparisonItemIds = [];
+};
+const addAllProducts = (event) => {
+  const window = unsafeWindow;
+  const comparisonProducts = window?.comparisonProducts || [];
+  const confirmed = confirm(
+    "Add all products displayed on this page to comparison system?"
+  );
+
+  if (confirmed && comparisonProducts.length) {
+    const comparisonElements = document.getElementsByClassName(
+      "comparison-system-img"
+    );
+    for (const comparisonElement of comparisonElements) {
+      if (comparisonElement.hasAttribute("src")) {
+        comparisonElement.classList.add("c-animate-spin");
+      }
+    }
+    addRemoveProductsLoading = true;
+
+    GM_xmlhttpRequest({
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      anonymous: true,
+      nocache: true,
+      // revalidate: true,
+      url: `${backendUrl}/products/batch`,
+      data: JSON.stringify(comparisonProducts),
+      // responseType: "json",
+      // fetch: true,
+      onload: function (res) {
+        console.log("Adding of all products done", res.response);
+        const itemIdsToAdd = comparisonProducts.map((product) => {
+          const itemId = product.itemid;
+          setImageToActive(itemId);
+          return itemId;
+        });
+        addBatchComparisonItemIds(itemIdsToAdd);
+        addRemoveProductsLoading = false;
+        patchProductsSort();
+
+        for (const comparisonElement of comparisonElements) {
+          if (comparisonElement.hasAttribute("src")) {
+            comparisonElement.src = logo;
+            comparisonElement.classList.remove("c-animate-spin");
+          }
+        }
+      },
+      onerror: function (res) {
+        console.log("Error creating itemId", res);
+        addRemoveProductsLoading = false;
+        for (const comparisonElement of comparisonElements) {
+          if (comparisonElement.hasAttribute("src")) {
+            comparisonElement.classList.remove("c-animate-spin");
+          }
+        }
+      },
+    });
+  }
+};
+const deleteAllProducts = (event) => {
+  const window = unsafeWindow;
+  const comparisonProducts = window?.comparisonProducts || [];
+  const confirmed = confirm(
+    "Removed products that is displayed in this page to the comparison system?"
+  );
+  const site = isShopee ? "shopee" : isLazada ? "lazada" : "";
+  const itemIds = comparisonProducts.map((product) => {
+    const itemId = product.itemid;
+    return itemId;
+  });
+
+  if (confirmed && site && itemIds.length) {
+    const comparisonElements = document.getElementsByClassName(
+      "comparison-system-img"
+    );
+    for (const comparisonElement of comparisonElements) {
+      if (comparisonElement.hasAttribute("src")) {
+        comparisonElement.classList.add("c-animate-spin");
+      }
+    }
+    addRemoveProductsLoading = true;
+
+    GM_xmlhttpRequest({
+      method: "DELETE",
+      headers: {
+        "content-type": "application/json",
+      },
+      anonymous: true,
+      nocache: true,
+      // revalidate: true,
+      url: `${backendUrl}/products/batch`,
+      data: JSON.stringify({
+        site,
+        itemIds,
+      }),
+      // responseType: "json",
+      // fetch: true,
+      onload: function (res) {
+        console.log("Deleting of all products done");
+        const itemIdsToDelete = comparisonProducts.map((product) => {
+          const itemId = product.itemid;
+          setImageToInactive(itemId);
+          return itemId;
+        });
+        removeBatchComparisonItemIds(itemIdsToDelete);
+        addRemoveProductsLoading = false;
+
+        for (const comparisonElement of comparisonElements) {
+          if (comparisonElement.hasAttribute("src")) {
+            comparisonElement.src = grayedLogo;
+            comparisonElement.classList.remove("c-animate-spin");
+          }
+        }
+      },
+      onerror: function (res) {
+        console.log("Error creating itemId", res);
+        addRemoveProductsLoading = false;
+        for (const comparisonElement of comparisonElements) {
+          if (comparisonElement.hasAttribute("src")) {
+            comparisonElement.classList.remove("c-animate-spin");
+          }
+        }
+      },
+    });
+  }
+};
+const RegisterRightClickMenu = () => {
+  if (addAllProductsMenu && deleteAllProductsMenu) {
+    return;
+  }
+
+  addAllProductsMenu = GM_registerMenuCommand(
+    "Save All Products",
+    addAllProducts
+  );
+  deleteAllProductsMenu = GM_registerMenuCommand(
+    "Remove All Products",
+    deleteAllProducts
+  );
+  console.log("Rignt click menu registered");
+};
+const addComparisonItemId = (itemId) => {
+  const window = unsafeWindow;
+
+  if (window?.comparisonItemIds) {
+    const newComparisonItemIds = window.comparisonItemIds;
+    newComparisonItemIds.push(itemId);
+    window.comparisonItemIds = newComparisonItemIds;
+  }
+};
+const removeComparisonItemId = (itemId) => {
+  const window = unsafeWindow;
+  const newComparisonItemIds = window?.comparisonItemIds || [];
+
+  const indexToRemove = newComparisonItemIds.indexOf(itemId);
+  newComparisonItemIds.splice(indexToRemove, 1);
+  window.comparisonItemIds = newComparisonItemIds;
+};
+
+(function (open) {
+  XMLHttpRequest.prototype.open = function (method, url) {
+    this.addEventListener("readystatechange", function () {
+      if (this.readyState === XMLHttpRequest.DONE) {
+        console.log(typeof url, JSON.stringify(url));
+
+        if (/catalog|shop-/.test(url)) {
+          const status = this.status;
+          if (status === 0 || (status >= 200 && status < 400)) {
+            // The request has been completed successfully
+            // console.log("intercepted", this.responseText);
+            createComparisonData(JSON.parse(this.response));
+            // setTimeout(LazadaAddLogoToProducts, 2000);
+          } else {
+            // Oh no! There has been an error with the request!
+          }
+        }
+      }
+    });
+    open.apply(this, arguments);
+  };
+})(XMLHttpRequest.prototype.open);
+
+(function () {
+  "use strict";
+  const window = unsafeWindow;
+  const { fetch: originalFetch } = window;
+
+  window.fetch = async (...args) => {
+    let [url, config] = args;
+    let response = await originalFetch(url, config);
+
+    if (/search_items/.test(url)) {
+      // response interceptor
+      const json = () =>
+        response
+          .clone()
+          .json()
+          .then((data) => {
+            // console.log("intercepted", JSON.stringify(data));
+            // setTimeout(ShopeeAddLogoToProducts, 2000);
+            createComparisonData(data);
+            return data;
+          });
+
+      response.json = json;
+    }
+    return response;
+  };
+
+  fetchComparisonItemIds();
+  checkIfComparisonSystemDataIsCreated();
+})();
+
+function LazadaAddLogoToProducts() {
+  const window = unsafeWindow;
+  RegisterRightClickMenu();
+  const products = document.querySelectorAll(
+    "div[data-qa-locator=product-item] > div"
+  );
+  const comparisonItemIds = window?.comparisonItemIds || [];
+
+  // console.log("products", products);
+  products.forEach((product) => {
+    const parentElement = product.parentNode;
+    const itemId = parentElement.getAttribute("data-item-id");
+    const displayLogo = comparisonItemIds.includes(Number(itemId))
+      ? logo
+      : grayedLogo;
+
+    const productAdded = createImageWithLink(displayLogo, itemId);
+    product.appendChild(productAdded);
+  });
+}
+
+function ShopeeAddLogoToProducts() {
+  const window = unsafeWindow;
+  RegisterRightClickMenu();
+  const products = document.querySelectorAll("li[data-sqe=item]");
+  const shopidItemidRe = /\d+\.\d+/g;
+  const comparisonItemIds = window?.comparisonItemIds || [];
+  console.log("comparisonItemIds", comparisonItemIds.length);
+
+  // console.log("products", products);
+  products.forEach((product) => {
+    observer.observe(product, {
+      childList: true,
+    });
+
+    const shopeeIcs = product.querySelectorAll(
+      "li[data-sqe=item] > div.shopee_ic > div"
+    );
+    shopeeIcs.forEach((shopeeIc) => {
+      if (!shopeeIc.classList.contains(`hover:!c-z-20`)) {
+        shopeeIc.classList.add(`hover:!c-z-20`);
+        const productLink = shopeeIc.querySelector("a.contents");
+        const hrefAttr = productLink.href;
+        // console.log("hrefAttr", hrefAttr);
+        const shopidItemidArr = hrefAttr.match(shopidItemidRe);
+        const shopidItemid = shopidItemidArr.pop();
+        // console.log("shopidItemid", shopidItemid);
+        const [, itemId] = shopidItemid.split(".");
+        const displayLogo = comparisonItemIds.includes(Number(itemId))
+          ? logo
+          : grayedLogo;
+        // console.log("itemId", itemId);
+
+        const productAdd = createImageWithLink(displayLogo, itemId);
+        shopeeIc.appendChild(productAdd);
+      }
+    });
+  });
+}
