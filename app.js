@@ -3,6 +3,7 @@ const express = require("express");
 const postgres = require("postgres");
 const { flatten, slice, zip } = require("ramda");
 const fs = require("fs");
+const cors = require("cors");
 
 const app = express();
 const sql = postgres(process.env.POSTGRES);
@@ -49,6 +50,7 @@ const getNeededData = (data) => {
   };
 };
 
+app.use(cors());
 app.use(express.json());
 
 app.get("/", async (req, res) => {
