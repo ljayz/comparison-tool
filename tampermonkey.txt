@@ -1,16 +1,18 @@
 // ==UserScript==
 // @name         Comparison System
 // @namespace    http://nodejs.ljayz.serv00.net/tampermonkey
-// @version      2024-03-29
+// @version      2024-04-29
 // @description  Save products from shopee and lazada to comparison system
 // @iconURL      https://iili.io/JS3ElTX.jpg
 // @author       Louie Cruz
+// @match        https://shopee.ph/*
 // @match        https://shopee.ph/search*
 // @match        https://www.lazada.com.ph/catalog*
 // @match        https://www.lazada.com.ph/shop*
 // @run-at       document-start
 // @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
+// @grant        window.onurlchange
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @connect      localhost
@@ -456,6 +458,7 @@ const removeComparisonItemId = (itemId) => {
             // The request has been completed successfully
             // console.log("intercepted", this.responseText);
             createComparisonData(JSON.parse(this.response));
+            checkIfComparisonSystemDataIsCreated();
             // setTimeout(LazadaAddLogoToProducts, 2000);
           } else {
             // Oh no! There has been an error with the request!
@@ -486,6 +489,7 @@ const removeComparisonItemId = (itemId) => {
             // console.log("intercepted", JSON.stringify(data));
             // setTimeout(ShopeeAddLogoToProducts, 2000);
             createComparisonData(data);
+            checkIfComparisonSystemDataIsCreated();
             return data;
           });
 
@@ -494,6 +498,7 @@ const removeComparisonItemId = (itemId) => {
     return response;
   };
 
+  console.log("run price pro system");
   fetchComparisonItemIds();
   checkIfComparisonSystemDataIsCreated();
 })();

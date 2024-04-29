@@ -7,9 +7,9 @@ const fs = require("fs");
 const app = express();
 const sql = postgres(process.env.POSTGRES);
 const port = process.env.PORT;
-const table = process.env.STAGE === "dev" ? "comparison_test" : "comparison";
+const table = process.env.STAGE === "dev" ? "comparison" : "comparison";
 const tableConfig =
-  process.env.STAGE === "dev" ? "comparison_config_test" : "comparison_config";
+  process.env.STAGE === "dev" ? "comparison_config" : "comparison_config";
 const log = (...arg) => {
   if (process.env.STAGE === "dev") {
     console.log(...arg);
@@ -55,6 +55,15 @@ app.get("/", async (req, res) => {
   res.send("It works!");
 });
 
+app.get("/about", async (req, res) => {
+  const [about] = await sql`
+    SELECT *
+    FROM ${sql(tableConfig)}
+    WHERE "key"='about'`;
+
+  res.send(about.value ? about.value : "No data found");
+});
+
 app.get("/tampermonkey", async (req, res) => {
   let data = fs.readFileSync("./tampermonkey.txt", "utf8");
   const regexArr = [
@@ -77,17 +86,26 @@ app.get("/tampermonkey", async (req, res) => {
 app.get("/products", async (req, res) => {
   try {
     const page = req.query?.page || "1";
+    const search = req.query?.search || "";
+
+    if (isNaN(Number(page))) {
+      res.json({ status: "success", data: [] });
+      return;
+    }
+
     const limit = 10;
     const offset = isNaN(Number(page)) ? 0 : (Number(page) - 1) * limit;
     const products = await sql`
       SELECT *
       FROM ${sql(table)}
+      ${search ? sql`WHERE LOWER(name) LIKE  ${`%${search.toLowerCase()}%`}` : sql``}
       ORDER BY sort asc
       LIMIT ${limit}
       OFFSET ${offset}
       `;
 
-    log("products", products);
+    log("search", search);
+    log("products", products.length);
     log("page", page);
     log("offset", offset);
     log("limit", limit);
@@ -136,9 +154,26 @@ app.get("/productIds/:ids", async (req, res) => {
 
     const ids = paramIds.split(",");
     const products = await sql`
-      SELECT *
-      FROM ${sql(table)}
-      WHERE id IN ${sql(ids)}`;
+      SELECT
+        productTable.*,
+        comparisonProductTable.id as c_id,
+        comparisonProductTable.site as c_site,
+        comparisonProductTable.name as c_name,
+        comparisonProductTable.itemid as c_itemid,
+        comparisonProductTable.shopid as c_shopid,
+        comparisonProductTable.brand as c_brand,
+        comparisonProductTable.rating as c_rating,
+        comparisonProductTable.sold as c_sold,
+        comparisonProductTable.price as c_price,
+        comparisonProductTable.review as c_review,
+        comparisonProductTable.stock as c_stock,
+        comparisonProductTable.location as c_location,
+        comparisonProductTable.image as c_image,
+        comparisonProductTable.images as c_images
+      FROM ${sql(table)} productTable
+      LEFT JOIN ${sql(table)} comparisonProductTable
+      ON productTable.comparisonid = comparisonProductTable.id
+      WHERE productTable.id IN ${sql(ids)}`;
     // log("products", products);
 
     res.json({
