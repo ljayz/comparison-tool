@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Comparison System
 // @namespace    http://nodejs.ljayz.serv00.net/tampermonkey
-// @version      2024-04-29
+// @version      2024-04-30
 // @description  Save products from shopee and lazada to comparison system
 // @iconURL      https://iili.io/JS3ElTX.jpg
 // @author       Louie Cruz
@@ -196,6 +196,10 @@ const checkIfComparisonSystemDataIsCreated = () => {
   }, 1000);
 };
 const formatLazadaAPIResponse = (products) => {
+  if (!products) {
+    return;
+  }
+
   try {
     return products.map((product) => ({
       site: "lazada",
@@ -217,6 +221,10 @@ const formatLazadaAPIResponse = (products) => {
   }
 };
 const formatShopeeAPIResponse = (products) => {
+  if (!products) {
+    return;
+  }
+
   try {
     return products.map((product) => ({
       site: "shopee",
@@ -519,8 +527,10 @@ function LazadaAddLogoToProducts() {
       ? logo
       : grayedLogo;
 
-    const productAdded = createImageWithLink(displayLogo, itemId);
-    product.appendChild(productAdded);
+    if (!document.getElementById(`comparisonItemId${itemId}`)) {
+      const productAdded = createImageWithLink(displayLogo, itemId);
+      product.appendChild(productAdded);
+    }
   });
 }
 
