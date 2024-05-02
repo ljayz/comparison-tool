@@ -246,14 +246,26 @@ app.post("/products", async (req, res) => {
   log("productData", productData);
 
   try {
-    const productArr = await sql`
+    const [existingProduct] = await sql`
+      SELECT *
+      FROM ${sql(table)}
+      WHERE site=${productData.site}
+      AND itemid=${productData.itemid}`;
+
+    if (existingProduct) {
+      res.status(409).json({
+        status: "success",
+        message: "Product exist",
+        data: existingProduct,
+      });
+      return;
+    }
+
+    const [product] = await sql`
       INSERT INTO ${sql(table)}
       ${sql(productData)}
       returning *
     `;
-
-    log("productArr", productArr);
-    const product = productArr.shift();
 
     res.status(201).json({
       status: "success",
