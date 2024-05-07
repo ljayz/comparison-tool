@@ -142,9 +142,10 @@ app.get("/itemIds/:site", async (req, res) => {
 });
 
 //get product by ids
-app.get("/productIds/:ids", async (req, res) => {
+app.get("/productIds/:ids?", async (req, res) => {
   try {
     const paramIds = req.params?.ids || "";
+    log("paramIds", paramIds);
     if (!paramIds || paramIds === "null") {
       return res.json({
         status: "success",
@@ -152,8 +153,6 @@ app.get("/productIds/:ids", async (req, res) => {
         data: [],
       });
     }
-    log("paramIds", paramIds);
-
     const ids = paramIds.split(",");
     const products = await sql`
       SELECT
