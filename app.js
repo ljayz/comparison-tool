@@ -57,6 +57,14 @@ app.get("/", async (req, res) => {
   res.send("It works!");
 });
 
+app.get(
+  "/.well-known/pki-validation/17CEE08F5A3017515D5B4C506FC763A9.txt",
+  async (req, res) => {
+    const data = fs.readFileSync("./certificate.txt", "utf8");
+    res.send(data);
+  },
+);
+
 app.get("/about", async (req, res) => {
   const [about] = await sql`
     SELECT *
