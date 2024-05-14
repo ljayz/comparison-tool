@@ -16,6 +16,23 @@ const log = (...arg) => {
     console.log(...arg);
   }
 };
+const getProductUrl = (product) => {
+  const replaceNameShopee = (data) => {
+    return data.replace(/[\s"&,]+/g, "-").replace(/-+/g, "-");
+  };
+  const replaceNameLazada = (data) => {
+    return data
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, "-");
+  };
+
+  if (product.site === "lazada") {
+    return `https://www.lazada.com.ph/products/${replaceNameLazada(product.name)}-i${product.itemid}-s${product.shopid}.html`;
+  } else if (product.site === "shopee") {
+    return `https://shopee.ph/${replaceNameShopee(product.name)}-i.${product.shopid}.${product.itemid}`;
+  }
+};
 const getNeededData = (data) => {
   const {
     site = "",
@@ -23,7 +40,7 @@ const getNeededData = (data) => {
     itemid = 0,
     shopid = 0,
     brand = "",
-    rating = "",
+    rating = 0,
     sold = "",
     price = 0,
     review = "",
@@ -33,13 +50,15 @@ const getNeededData = (data) => {
     images,
   } = data;
 
+  const url = getProductUrl(data);
+
   return {
     site,
     name,
     itemid,
     shopid,
     brand,
-    rating,
+    rating: Number(rating),
     sold,
     price,
     review,
@@ -47,7 +66,14 @@ const getNeededData = (data) => {
     location,
     image,
     images,
+    url,
   };
+};
+const roundToNearestWholeNumber = (number) => {
+  const digitLength = String(parseInt(number)).length;
+  const nearestNumber = Number(String(1).padEnd(digitLength, 0));
+
+  return Math.ceil(number / nearestNumber) * nearestNumber;
 };
 
 app.use(cors());
@@ -56,14 +82,6 @@ app.use(express.json());
 app.get("/", async (req, res) => {
   res.send("It works!");
 });
-
-app.get(
-  "/.well-known/pki-validation/1C4303A9B6C061670CE1A76E27BC3C1F.txt",
-  async (req, res) => {
-    const data = fs.readFileSync("./certificate.txt", "utf8");
-    res.send(data);
-  },
-);
 
 app.get("/about", async (req, res) => {
   const [about] = await sql`
@@ -97,10 +115,39 @@ app.get("/products", async (req, res) => {
   try {
     const page = req.query?.page || "1";
     const search = req.query?.search || "";
+    const minPrice = req.query?.minPrice ?? 0;
+    const maxPrice = req.query?.maxPrice ?? 10000;
+    const isFilter = req.query?.isFilter ?? false;
 
     if (isNaN(Number(page))) {
-      res.json({ status: "success", data: [] });
+      res.json({ status: "success", message: "No products found", data: [] });
       return;
+    }
+
+    let whereArr = [],
+      where;
+    if (isFilter) {
+      if (search) {
+        whereArr.push(
+          sql`LOWER(name) LIKE ${`%${search.toLowerCase()}%`}`.raw(),
+        );
+      }
+      if (!isNaN(Number(minPrice)) && minPrice >= 0) {
+        whereArr.push(sql`price>=${Number(minPrice)}`.raw());
+      }
+      if (!isNaN(Number(maxPrice)) && maxPrice >= 0) {
+        whereArr.push(sql`price<=${Number(maxPrice)}`.raw());
+      }
+      if (whereArr.length) {
+        for (const whereStmt of whereArr) {
+          if (where) {
+            where = sql`${where} AND ${whereStmt}`.raw();
+          } else {
+            where = sql`WHERE ${whereStmt}`.raw();
+          }
+        }
+      }
+      // console.log(where);
     }
 
     const limit = 10;
@@ -108,7 +155,7 @@ app.get("/products", async (req, res) => {
     const products = await sql`
       SELECT *
       FROM ${sql(table)}
-      ${search ? sql`WHERE LOWER(name) LIKE  ${`%${search.toLowerCase()}%`}` : sql``}
+      ${where ? sql`${where}` : sql``}
       ORDER BY sort asc
       LIMIT ${limit}
       OFFSET ${offset}
@@ -119,7 +166,14 @@ app.get("/products", async (req, res) => {
     log("page", page);
     log("offset", offset);
     log("limit", limit);
-    res.json({ status: "success", data: products });
+    log("minPrice", minPrice);
+    log("maxPrice", maxPrice);
+    log("isFilter", isFilter);
+    res.json({
+      status: "success",
+      message: "Products successfully retrieved",
+      data: products,
+    });
   } catch (err) {
     console.error("Error selecting products", err);
     res.status(500).json({ status: "error", message: "Unknown error occured" });
@@ -178,7 +232,8 @@ app.get("/productIds/:ids?", async (req, res) => {
         comparisonProductTable.stock as c_stock,
         comparisonProductTable.location as c_location,
         comparisonProductTable.image as c_image,
-        comparisonProductTable.images as c_images
+        comparisonProductTable.images as c_images,
+        comparisonProductTable.url as c_url
       FROM ${sql(table)} productTable
       LEFT JOIN ${sql(table)} comparisonProductTable
       ON productTable.comparisonid = comparisonProductTable.id
@@ -192,6 +247,38 @@ app.get("/productIds/:ids?", async (req, res) => {
     });
   } catch (err) {
     console.error("Error selecting itemIds", JSON.stringify(req.params), err);
+    res.status(500).send({ status: "error", message: "Unknown error occured" });
+  }
+});
+
+app.get("/search/defaultValues", async (req, res) => {
+  try {
+    const [data] = await sql`
+      SELECT
+       	MIN(price) as minPrice,
+       	MAX(price) as maxPrice
+      FROM ${sql(table)};
+      `;
+
+    log("data", data);
+
+    const minPrice = 0;
+    const maxPrice = data.maxprice
+      ? roundToNearestWholeNumber(data.maxprice)
+      : 100000;
+    const step = 10;
+
+    res.json({
+      status: "success",
+      message: "Default values successfully selected",
+      data: {
+        minPrice,
+        maxPrice,
+        step,
+      },
+    });
+  } catch (err) {
+    console.error("Error selecting search default values", err);
     res.status(500).send({ status: "error", message: "Unknown error occured" });
   }
 });
@@ -290,6 +377,7 @@ app.put("/products/:id", async (req, res) => {
   res.send("debug...");
 });
 
+// patch sort
 app.patch("/products/sort", async (req, res) => {
   try {
     const [status] = await sql`
@@ -386,6 +474,38 @@ app.patch("/products/sort", async (req, res) => {
   }
 });
 
+// patch url
+app.patch("/products/url", async (req, res) => {
+  try {
+    const emptyURLProducts = await sql`
+      SELECT *
+      FROM ${sql(table)}
+      WHERE url='' OR url IS NULL`;
+    log("emptyURLProducts", emptyURLProducts);
+
+    const updateData = [];
+    for (const product of emptyURLProducts) {
+      updateData.push([product.id, getProductUrl(product)]);
+    }
+    log("updateData", updateData);
+
+    if (updateData.length) {
+      await sql`
+        UPDATE comparison SET url=update_data.url
+          FROM (values ${sql(updateData)}) as update_data(id, url)
+          WHERE comparison.id=(update_data.id)::int
+      `;
+      res.json({ status: "success", message: "Products successfully updated" });
+      return;
+    }
+
+    res.json({ status: "success", message: "No product updated" });
+  } catch (err) {
+    console.error("Error updating products url", err);
+    res.status(500).json({ status: "error", message: "Unknown error occured" });
+  }
+});
+
 //update specific column
 app.patch("/products/:id", async (req, res) => {
   res.send("debug...");
@@ -461,5 +581,5 @@ app.delete("/products/:itemId/:site", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`App listening on port ${port}`);
 });
