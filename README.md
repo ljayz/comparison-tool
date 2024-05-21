@@ -16,14 +16,16 @@ APIs
 |        | delete | /products/:itemId/:site |             | app.js#L543-L581 |
 |        | put    | /products/:id           |             | app.js#L376-L378 |
 
-get /about - returns about data
-get /tampermonkey - returns code for installing script in tampermonkey
-get /products - returns list of products in mobile app home page
-get /itemIds/:site - returns lists of itemid stored in the database
-get /productsIds/:ids? - return lists of productids stored in the database. if ids has a value filter result based on value of ids
-get /search/defaultValues - return lists of min and maximum value used in mobile app filtering
-post /products/batch - save product by batch, used in tampermonkey
-post /products - save one product, used in tampermonkey
-delete /products/batch - delete product by batch, used in tampermonkey
-delete /products/:itemId/:site - delete one product, used in tampermonkey
-put /products/:id - update products, used in tooljet to update product comparison
+```
+get     /about - returns about data
+get     /tampermonkey - returns code for installing script in tampermonkey
+get     /products - returns list of products in mobile app home page
+get     /itemIds/:site - returns lists of itemid stored in the database
+get     /productsIds/:ids? - return lists of productids stored in the database. if ids has a value filter result based on value of ids
+get     /search/defaultValues - return lists of min and maximum value used in mobile app filtering
+post    /products/batch - save product by batch, used in tampermonkey
+pos     /products - save one product, used in tampermonkey
+delete  /products/batch - delete product by batch, used in tampermonkey
+delete  /products/:itemId/:site - delete one product, used in tampermonkey
+put     /products/:id - update products, used in tooljet to update product comparison
+```
